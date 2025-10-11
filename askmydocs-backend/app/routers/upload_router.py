@@ -1,10 +1,16 @@
 import uuid
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db import get_db
+from app.database import get_db
 from app.models import Document, User
 from app.schemas import UploadResponse
-from azure.storage.blob import BlobServiceClient
+from app.routers.auth_router import get_current_user
+try:
+    from azure.storage.blob import BlobServiceClient
+    AZURE_AVAILABLE = True
+except ImportError:
+    AZURE_AVAILABLE = False
+    
 from app.config import AZURE_STORAGE_CONNECTION_STRING
 from app.services.embeddings_service import embed_and_upsert_from_text
 import aiofiles
@@ -12,27 +18,17 @@ import tempfile
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
-# NOTE: For simplicity this example assumes a user id of 1.
-# In production extract user from JWT and load from DB.
-async def get_current_user_id():
-    return 1
-
 @router.post("/", response_model=UploadResponse)
-async def upload_file(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
-    user_id = await get_current_user_id()
+async def upload_file(
+    file: UploadFile = File(...), 
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    user_id = current_user.id
 
-    # store file temporarily and upload to Azure Blob Storage
-    blob_service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-    container_name = "documents"
-    try:
-        blob_service.create_container(container_name)
-    except Exception:
-        pass
+    # store file temporarily and optionally upload to Azure Blob Storage
+    blob_url = f"local://uploads/{file.filename}"
 
-    unique_name = f"{uuid.uuid4()}_{file.filename}"
-    blob_client = blob_service.get_blob_client(container=container_name, blob=unique_name)
-
-    # write file content to temporary file first (to pass to text extraction)
     suffix = file.filename.split(".")[-1].lower()
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
         content = await file.read()
@@ -40,10 +36,19 @@ async def upload_file(file: UploadFile = File(...), db: AsyncSession = Depends(g
         tmp.flush()
         tmp_path = tmp.name
 
-    # upload to azure
-    with open(tmp_path, "rb") as data:
-        blob_client.upload_blob(data, overwrite=True)
-    blob_url = blob_client.url
+    if AZURE_AVAILABLE and AZURE_STORAGE_CONNECTION_STRING:
+        blob_service = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+        container_name = "documents"
+        try:
+            blob_service.create_container(container_name)
+        except Exception:
+            pass
+
+        unique_name = f"{uuid.uuid4()}_{file.filename}"
+        blob_client = blob_service.get_blob_client(container=container_name, blob=unique_name)
+        with open(tmp_path, "rb") as data:
+            blob_client.upload_blob(data, overwrite=True)
+        blob_url = blob_client.url
 
     # save metadata to DB
     doc = Document(user_id=user_id, filename=file.filename, blob_url=blob_url)

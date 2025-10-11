@@ -11,7 +11,7 @@ import requests
 from typing import Dict, Any
 
 # Test configuration
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://askmydocs-backend:8000"
 TEST_DOCUMENTS_DIR = "/app/test_documents"
 
 
@@ -61,49 +61,39 @@ class TestAPIEndpoints:
     
     def test_add_document_python_content(self):
         """Test adding a document with Python programming content"""
-        with open("/home/pkmittal/MyDemo/AskMyDocs/askmydocs-backend/test_documents/python_programming.txt", "r") as f:
+        with open("/app/test_documents/python_programming.txt", "r") as f:
             content = f.read()
-        
         test_doc = {
             "title": "python_programming_guide",
             "content": content
         }
-        
         response = requests.post(
             f"{self.base_url}/chat/add_document",
             headers=self.headers,
             json=test_doc
         )
-        
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-        
         result = response.json()
         assert result["title"] == test_doc["title"]
         assert len(result["content"]) > 100, "Content should be substantial"
-        
         print(f"✅ Python document added successfully: {result['id']}")
     
     def test_add_document_fastapi_content(self):
         """Test adding a document with FastAPI content"""
-        with open("/home/pkmittal/MyDemo/AskMyDocs/askmydocs-backend/test_documents/fastapi_guide.txt", "r") as f:
+        with open("/app/test_documents/fastapi_guide.txt", "r") as f:
             content = f.read()
-        
         test_doc = {
             "title": "fastapi_framework_guide", 
             "content": content
         }
-        
         response = requests.post(
             f"{self.base_url}/chat/add_document",
             headers=self.headers,
             json=test_doc
         )
-        
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-        
         result = response.json()
         assert result["title"] == test_doc["title"]
-        
         print(f"✅ FastAPI document added successfully: {result['id']}")
     
     def test_add_document_empty_content(self):
@@ -257,34 +247,28 @@ class TestDocumentProcessing:
     
     def test_pdf_file_exists(self):
         """Test that the sample PDF file exists"""
-        pdf_path = "/home/pkmittal/MyDemo/AskMyDocs/askmydocs-backend/test_documents/sample_document.pdf"
+        pdf_path = "/app/test_documents/sample_document.pdf"
         assert os.path.exists(pdf_path), "Sample PDF should exist"
-        
         # Check file size
         file_size = os.path.getsize(pdf_path)
         assert file_size > 0, "PDF file should not be empty"
-        
         print(f"✅ PDF file exists and has size: {file_size} bytes")
     
     def test_text_files_exist(self):
         """Test that all text files exist"""
         text_files = [
             "machine_learning_basics.txt",
-            "python_programming.txt", 
+            "python_programming.txt",
             "fastapi_guide.txt"
         ]
-        
-        base_dir = "/home/pkmittal/MyDemo/AskMyDocs/askmydocs-backend/test_documents"
-        
+        base_dir = "/app/test_documents"
         for filename in text_files:
             filepath = os.path.join(base_dir, filename)
             assert os.path.exists(filepath), f"Text file {filename} should exist"
-            
             # Check content length
             with open(filepath, 'r') as f:
                 content = f.read()
             assert len(content) > 100, f"Text file {filename} should have substantial content"
-        
         print("✅ All text files exist and have content")
 
 

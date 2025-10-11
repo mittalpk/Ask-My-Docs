@@ -11,5 +11,5 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     existing = await get_user_by_email(db, user.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    new_user = await create_user(db, user.email, user.password)
+    new_user = await create_user(db, user.name, user.email, user.password)
     return new_user

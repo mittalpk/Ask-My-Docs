@@ -1,0 +1,72 @@
+services:
+  # Database
+  askmydocs-postgres:
+    image: postgres:15
+    container_name: askmydocs-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: askmydocs
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama for local LLM
+  ollama:
+    build:
+      context: .
+      dockerfile: ollama.Dockerfile
+    container_name: askmydocs-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  # Backend API
+  askmydocs-backend:
+    build: ./askmydocs-backend
+    container_name: askmydocs-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@askmydocs-postgres:5432/askmydocs
+      LLM_PROVIDER: ollama
+      OLLAMA_MODEL: nomic-embed-text
+      OLLAMA_HOST: ollama
+      OLLAMA_PORT: 11434
+      JWT_SECRET_KEY: your-secret-key-change-in-production
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    depends_on:
+      askmydocs-postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./askmydocs-backend:/app
+    restart: unless-stopped
+
+  # Frontend
+  askmydocs-frontend:
+    build: ./askmydocs-frontend
+    container_name: askmydocs-frontend
+    environment:
+      VITE_API_BASE: http://localhost:8000
+    depends_on:
+      - askmydocs-backend
+    ports:
+      - "3001:5173"
+    volumes:
+      - ./askmydocs-frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:

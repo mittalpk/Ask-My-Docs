@@ -13,9 +13,12 @@ Tech Stack: Python, FastAPI, PostgreSQL, ChromaDB, Docker, Ollama, OpenAI
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, chat
+from app.routers import auth_router, upload_router, chat_router
 from app.database import engine
 from app.models import Base
+import os
 
 app = FastAPI(
     title="AskMyDocs - AI Document Query System",
@@ -45,12 +48,28 @@ app = FastAPI(
     },
     license_info={
         "name": "Portfolio Project",
-        "url": "https://github.com/mittalpk/AskMyDocs"
+        "url": "https://github.com/mittalpk/Ask-My-Docs.git"
     }
 )
 
+# Configure CORS
+origins = [
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://localhost:5173"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
+
 # Include routers
-app.include_router(auth.router, prefix="/auth")
+app.include_router(auth_router.router)
+app.include_router(upload_router.router) 
 app.include_router(chat.router, prefix="/chat")
 
 # Create tables on startup
