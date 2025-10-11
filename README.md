@@ -112,8 +112,8 @@ AskMyDocs/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/mittalpk/AskMyDocs.git
-cd AskMyDocs
+git clone https://github.com/mittalpk/Ask-My-Docs.git
+cd Ask-My-Docs
 ```
 
 2. Start all services (backend + frontend + database):
