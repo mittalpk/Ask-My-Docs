@@ -1,0 +1,38 @@
+Introduction to Machine Learning
+
+Machine Learning (ML) is a subset of artificial intelligence (AI) that enables computers to automatically learn and improve from experience without being explicitly programmed. 
+
+Key concepts in machine learning include:
+
+1. Supervised Learning
+   - Training with labeled data
+   - Examples: Classification, Regression
+   - Algorithms: Linear Regression, Decision Trees, Random Forest
+
+2. Unsupervised Learning
+   - Finding patterns in unlabeled data
+   - Examples: Clustering, Association Rules
+   - Algorithms: K-Means, Hierarchical Clustering
+
+3. Reinforcement Learning
+   - Learning through interaction with environment
+   - Reward-based learning system
+   - Applications: Game playing, Robotics
+
+Machine learning applications include:
+- Image recognition and computer vision
+- Natural language processing
+- Recommendation systems
+- Fraud detection
+- Autonomous vehicles
+- Medical diagnosis
+
+The machine learning pipeline typically involves:
+1. Data Collection
+2. Data Preprocessing
+3. Model Selection
+4. Training
+5. Evaluation
+6. Deployment
+
+Popular machine learning frameworks include TensorFlow, PyTorch, Scikit-learn, and Keras.

@@ -1,0 +1,43 @@
+services:
+  askmydocs-postgres:
+    image: postgres:15
+    container_name: askmydocs-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: askmydocs-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  askmydocs-backend:
+    build: .
+    container_name: askmydocs-backend
+    env_file:
+      - .env
+    environment:
+      LLM_PROVIDER: ollama
+      OLLAMA_MODEL: nomic-embed-text
+      OLLAMA_HOST: ollama
+      OLLAMA_PORT: 11434
+    depends_on:
+      - askmydocs-postgres
+      - ollama
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:
+  ollama_data:
