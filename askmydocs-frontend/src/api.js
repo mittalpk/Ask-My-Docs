@@ -35,8 +35,8 @@ export async function uploadFile(file){
   return res.data
 }
 
-export async function queryDocs(query){
-  const res = await client.post('/chat/query', { query })
+export async function queryDocs(query, model = 'llama3'){
+  const res = await client.post('/chat/query', { query, model })
   return res.data
 }
 

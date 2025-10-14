@@ -24,6 +24,7 @@ class DocumentOut(DocumentCreate):
 
 class QueryRequest(BaseModel):
     query: str
+    model: str = 'llama3'  # Default to llama3
 
 class SourceDoc(BaseModel):
     doc_id: str

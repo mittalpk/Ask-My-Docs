@@ -10,6 +10,7 @@ export default function Dashboard(){
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [user, setUser] = useState(null)
+  const [selectedModel, setSelectedModel] = useState('llama3')
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' })
 
@@ -115,8 +116,9 @@ export default function Dashboard(){
     if(!query.trim()){ setMsg('Enter a question'); return }
     setLoading(true)
     try{
-      const res = await queryDocs(query)
+      const res = await queryDocs(query, selectedModel)
       setAnswer(res.answer)
+      setMsg(`Response from ${res.llm_used || selectedModel}`)
     }catch(err){
       setMsg('Query failed')
     }finally{ setLoading(false) }
@@ -262,6 +264,31 @@ export default function Dashboard(){
           <div className="right-panel">
             <div className="chat-header">
               <h3>🤖 Ask Your Documents</h3>
+              <div className="model-selection">
+                <label className="model-label">Model:</label>
+                <div className="radio-group">
+                  <label className="radio-option">
+                    <input
+                      type="radio"
+                      name="model"
+                      value="llama3"
+                      checked={selectedModel === 'llama3'}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                    />
+                    <span>🦙 Llama3</span>
+                  </label>
+                  <label className="radio-option">
+                    <input
+                      type="radio"
+                      name="model"
+                      value="openai"
+                      checked={selectedModel === 'openai'}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                    />
+                    <span>🤖 OpenAI</span>
+                  </label>
+                </div>
+              </div>
             </div>
             <div className="chat-content">
               {answer && (

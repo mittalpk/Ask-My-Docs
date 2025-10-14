@@ -72,7 +72,7 @@ async def add_document(doc: DocumentCreate):
 @router.post("/query", response_model=QueryResponse)
 async def query_docs(request: QueryRequest):
     """
-    Ask a question about uploaded documents using hybrid LLM (Ollama + OpenAI).
+    Ask a question about uploaded documents using selected LLM (Ollama or OpenAI).
     """
-    answer, sources, llm_used = await ask_hybrid_llm(request.query)
+    answer, sources, llm_used = await ask_hybrid_llm(request.query, request.model)
     return {"answer": answer, "source_documents": sources, "llm_used": llm_used}
