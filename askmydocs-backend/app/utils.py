@@ -2,7 +2,6 @@ import requests
 from typing import List, Tuple
 from app.config import settings
 from app.schemas import SourceDoc
-from app.services.embeddings_service import get_chroma_client
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,23 +15,47 @@ async def ask_hybrid_llm(query: str, model: str = 'llama3') -> Tuple[str, List[S
     Returns: (answer, source_documents, llm_used)
     """
     try:
-        # Step 1: Retrieve relevant documents from vector database
-        vectordb = get_chroma_client()
+        # Step 1: Retrieve relevant documents from vector database using same client as storage
+        import chromadb
+        from chromadb.utils import embedding_functions
+        
+        # Use the same ChromaDB client and collection as in chat.py
+        client = chromadb.Client()
+        
+        # Initialize embedding function (same as in chat.py)
+        embedding_fn = embedding_functions.OllamaEmbeddingFunction(
+            url=f"http://{settings.ollama_host}:{settings.ollama_port}",
+            model_name=settings.ollama_model,
+        )
+        
+        collection = client.get_or_create_collection(
+            name="documents", embedding_function=embedding_fn
+        )
         
         # Search for relevant documents
         try:
-            search_results = vectordb.similarity_search_with_score(query, k=3)
+            # Query the collection directly using ChromaDB's query method
+            results = collection.query(
+                query_texts=[query],
+                n_results=3
+            )
+            
             relevant_docs = []
             source_docs = []
             
-            for doc, score in search_results:
-                relevant_docs.append(doc.page_content)
-                source_docs.append(SourceDoc(
-                    doc_id=str(doc.metadata.get("doc_id", "unknown")),
-                    filename=doc.metadata.get("filename", "unknown"),
-                    content=doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
-                    relevance_score=float(score)
-                ))
+            if results['documents'] and results['documents'][0]:
+                for i, (doc_content, metadata, distance) in enumerate(zip(
+                    results['documents'][0],
+                    results['metadatas'][0], 
+                    results['distances'][0]
+                )):
+                    relevant_docs.append(doc_content)
+                    source_docs.append(SourceDoc(
+                        doc_id=str(metadata.get("title", f"doc_{i}")),
+                        filename=metadata.get("title", f"document_{i}"),
+                        content=doc_content[:200] + "..." if len(doc_content) > 200 else doc_content,
+                        relevance_score=float(1 - distance)  # Convert distance to similarity score
+                    ))
             
             # Step 2: Create context from retrieved documents
             if relevant_docs:

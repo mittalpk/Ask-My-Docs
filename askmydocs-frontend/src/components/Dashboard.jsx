@@ -320,7 +320,7 @@ export default function Dashboard(){
                   onClick={handleQuery} 
                   disabled={loading || !query.trim()}
                 >
-                  {loading ? '🤔' : '❓'}
+                  {loading ? 'Asking...' : 'Ask'}
                 </button>
               </div>
             </div>

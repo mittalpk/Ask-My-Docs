@@ -772,11 +772,17 @@ input[type=text]:focus, input[type=email]:focus, input[type=password]:focus, tex
   border:2px solid #e5e7eb;
   border-radius:8px;
   font-size:14px;
+  background:white;
+  color:#374151;
 }
 
 .query-input:focus{
   outline:none;
   border-color:var(--accent);
+}
+
+.query-input::placeholder{
+  color:#9ca3af;
 }
 
 /* Modal */
