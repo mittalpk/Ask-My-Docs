@@ -6,6 +6,20 @@ AskMyDocs is a complete full-stack application that allows users to upload docum
 
 Upload PDF, TXT, or Markdown documents through a beautiful web interface and ask questions in plain English. The system extracts document content, creates semantic embeddings, and uses retrieval-augmented generation (RAG) to provide accurate answers based on your documents.
 
+## 🆕 Recent Updates
+
+### Model Selection Feature (October 2025)
+- ✨ **Dual LLM Support**: Users can now choose between Llama3 (local/free) and OpenAI GPT-3.5-turbo (cloud/powerful)
+- 🎛️ **Interactive Selection**: Radio buttons in the chat interface for easy model switching
+- 🔄 **Smart Routing**: Backend automatically routes queries to the selected AI model
+- 📊 **Response Transparency**: Shows which model generated each response
+- 🎨 **UI Improvements**: Fixed query input visibility and added clear "Ask" button label
+
+### RAG System Enhancement
+- 🔧 **Fixed Document Retrieval**: Resolved ChromaDB collection mismatch for accurate document search
+- 🎯 **Improved Accuracy**: Documents are now correctly retrieved and used for generating responses
+- ⚡ **Performance Optimized**: Streamlined vector search with proper embedding consistency
+
 ## Key Features
 
 ### 🎨 **Frontend (React)**
@@ -13,6 +27,7 @@ Upload PDF, TXT, or Markdown documents through a beautiful web interface and ask
 - **User Authentication** - Secure JWT-based login/registration system
 - **Document Upload** - Drag-and-drop file upload with progress indicators
 - **Real-time Chat** - Interactive chat interface for document queries
+- **Model Selection** - Choose between Llama3 (local) and OpenAI (cloud) models
 - **Auto-logout** - 15-minute inactivity timeout for security
 - **Password Management** - Secure password change functionality
 
@@ -25,7 +40,9 @@ Upload PDF, TXT, or Markdown documents through a beautiful web interface and ask
 
 ### 🤖 **AI Integration**
 - **RAG Pipeline** - Retrieval-Augmented Generation for accurate answers
+- **Dual LLM Support** - Choose between local Ollama models or OpenAI GPT-3.5-turbo
 - **Local Models** - Ollama integration with llama3.2:1b and llama3 models
+- **Cloud Models** - OpenAI GPT-3.5-turbo integration with API key support
 - **Semantic Embeddings** - nomic-embed-text for document vectorization
 - **Smart Fallbacks** - Graceful degradation when AI models are unavailable
 
@@ -41,7 +58,7 @@ Upload PDF, TXT, or Markdown documents through a beautiful web interface and ask
 - **Backend**: FastAPI with async support, SQLAlchemy ORM
 - **Database**: PostgreSQL 15 with user authentication
 - **Vector Database**: ChromaDB for semantic embeddings
-- **AI Models**: Ollama (llama3.2:1b, llama3, nomic-embed-text)
+- **AI Models**: Ollama (llama3.2:1b, llama3, nomic-embed-text) + OpenAI (GPT-3.5-turbo)
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Infrastructure**: Docker Compose with multi-service orchestration
 - **Testing**: Pytest with comprehensive PDF processing tests
@@ -134,8 +151,9 @@ docker-compose up --build
 1. **Register/Login**: Create an account at `http://localhost:3001`
 2. **Upload Documents**: Use the upload tab to add PDF, TXT, or MD files
 3. **Add Text**: Directly paste text content for indexing
-4. **Ask Questions**: Chat with your documents using natural language
-5. **Manage Account**: Change password, auto-logout after 15 minutes
+4. **Select Model**: Choose between 🦙 Llama3 (local/free) or 🤖 OpenAI (cloud/powerful)
+5. **Ask Questions**: Chat with your documents using natural language
+6. **Manage Account**: Change password, auto-logout after 15 minutes
 
 ### API Usage (Advanced)
 
@@ -202,13 +220,20 @@ Real-time conversation with your documents using retrieval-augmented generation.
 
 ## Configuration
 
-The system uses local Ollama models by default (no API keys required). Environment variables:
+The system supports both local Ollama models (default) and OpenAI cloud models. Users can select their preferred model through the web interface.
 
+### Environment Variables:
 - `LLM_PROVIDER`: "ollama" (default)
 - `OLLAMA_HOST`: Ollama server host (default: ollama)
 - `OLLAMA_PORT`: Ollama server port (default: 11434)
+- `OPENAI_API_KEY`: OpenAI API key (required only for OpenAI model selection)
 - `JWT_SECRET_KEY`: JWT signing secret (change in production)
 - `DATABASE_URL`: PostgreSQL connection string
+
+### Model Selection:
+- **Llama3 (Local)**: Fast, free, runs entirely offline using Ollama
+- **OpenAI GPT-3.5**: More powerful, requires API key and internet connection
+- **Dynamic Switching**: Users can change models per conversation through the UI
 
 ## Performance Optimizations
 
