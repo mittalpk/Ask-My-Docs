@@ -117,8 +117,9 @@ export default function Dashboard(){
     setLoading(true)
     try{
       const res = await queryDocs(query, selectedModel)
-      setAnswer(res.answer)
+      setAnswer(res) // Store full response including sources
       setMsg(`Response from ${res.llm_used || selectedModel}`)
+      setQuery('') // Clear input after successful response
     }catch(err){
       setMsg('Query failed')
     }finally{ setLoading(false) }
@@ -292,9 +293,40 @@ export default function Dashboard(){
             </div>
             <div className="chat-content">
               {answer && (
-                <div className="answer-bubble">
-                  <div className="answer-header">💡 Answer</div>
-                  <div className="answer-text">{answer}</div>
+                <div className="answer-container">
+                  <div className="answer-bubble">
+                    <div className="answer-header">
+                      <span className="answer-icon">💡</span>
+                      <span>Answer</span>
+                    </div>
+                    <div className="answer-text">
+                      {answer.answer?.split('\n').map((line, idx) => (
+                        <p key={idx} className="answer-paragraph">{line}</p>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {answer.source_documents && answer.source_documents.length > 0 && (
+                    <div className="sources-section">
+                      <div className="sources-header">
+                        <span className="sources-icon">📄</span>
+                        <span>Source Documents ({answer.source_documents.length})</span>
+                      </div>
+                      <div className="sources-list">
+                        {answer.source_documents.slice(0, 3).map((doc, idx) => (
+                          <div key={idx} className="source-item">
+                            <div className="source-meta">
+                              <span className="source-badge">#{idx + 1}</span>
+                              <span className="source-filename">{doc.filename}</span>
+                            </div>
+                            <div className="source-content">
+                              {doc.content.substring(0, 150)}...
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               

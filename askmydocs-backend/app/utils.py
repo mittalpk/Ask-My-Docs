@@ -1,140 +1,74 @@
-import requests
+import logging
 from typing import List, Tuple
+
+from langchain.prompts import PromptTemplate
+from langchain_community.llms import Ollama
+
 from app.config import settings
 from app.schemas import SourceDoc
-import logging
+from app.services.embeddings_service import get_chroma_client
 
 logger = logging.getLogger(__name__)
 
-async def ask_hybrid_llm(query: str, model: str = 'llama3') -> Tuple[str, List[SourceDoc], str]:
+
+# Keep the prompt in sync with rag_service to force document-grounded answers.
+CUSTOM_PROMPT = PromptTemplate(
+    input_variables=["context", "question"],
+    template="""You are a helpful assistant that answers questions based ONLY on the provided documents.
+
+Context from documents:
+{context}
+
+Question: {question}
+
+Answer the question using ONLY the information from the documents above. If the answer is not in the documents, say \"I cannot find this information in the provided documents.\" Be direct and concise."""
+)
+
+
+async def ask_hybrid_llm(query: str, model: str = "ollama") -> Tuple[str, List[SourceDoc], str]:
     """
-    Query documents using RAG approach with vector search.
-    Args:
-        query: User's question
-        model: Selected model ('llama3' or 'openai')
+    Query the persisted Chroma vector store and answer with Ollama using the same embeddings used on upload.
     Returns: (answer, source_documents, llm_used)
     """
     try:
-        # Step 1: Retrieve relevant documents from vector database using same client as storage
-        import chromadb
-        from chromadb.utils import embedding_functions
-        
-        # Use the same ChromaDB client and collection as in chat.py
-        client = chromadb.Client()
-        
-        # Initialize embedding function (same as in chat.py)
-        embedding_fn = embedding_functions.OllamaEmbeddingFunction(
-            url=f"http://{settings.ollama_host}:{settings.ollama_port}",
-            model_name=settings.ollama_model,
-        )
-        
-        collection = client.get_or_create_collection(
-            name="documents", embedding_function=embedding_fn
-        )
-        
-        # Search for relevant documents
-        try:
-            # Query the collection directly using ChromaDB's query method
-            results = collection.query(
-                query_texts=[query],
-                n_results=3
-            )
+        vectordb = get_chroma_client()
+        retriever = vectordb.as_retriever(search_kwargs={"k": 5})
+        docs = retriever.get_relevant_documents(query)
+
+        if docs:
+            context = "\n\n".join([doc.page_content for doc in docs])
             
-            relevant_docs = []
+            # Deduplicate source documents by filename
+            seen_filenames = set()
             source_docs = []
-            
-            if results['documents'] and results['documents'][0]:
-                for i, (doc_content, metadata, distance) in enumerate(zip(
-                    results['documents'][0],
-                    results['metadatas'][0], 
-                    results['distances'][0]
-                )):
-                    relevant_docs.append(doc_content)
+            for i, doc in enumerate(docs):
+                filename = doc.metadata.get("filename", f"document_{i}")
+                if filename not in seen_filenames:
+                    seen_filenames.add(filename)
                     source_docs.append(SourceDoc(
-                        doc_id=str(metadata.get("title", f"doc_{i}")),
-                        filename=metadata.get("title", f"document_{i}"),
-                        content=doc_content[:200] + "..." if len(doc_content) > 200 else doc_content,
-                        relevance_score=float(1 - distance)  # Convert distance to similarity score
+                        doc_id=str(doc.metadata.get("doc_id", i)),
+                        filename=filename,
+                        content=doc.page_content,
+                        relevance_score=0.0,
                     ))
-            
-            # Step 2: Create context from retrieved documents
-            if relevant_docs:
-                context = "\n\n".join([f"Document {i+1}: {doc}" for i, doc in enumerate(relevant_docs)])
-                prompt = f"""Based on the following documents, answer the user's question. If the documents don't contain relevant information, say so.
-
-Documents:
-{context}
-
-Question: {query}
-
-Answer based on the documents provided:"""
-            else:
-                prompt = f"No relevant documents found for the question: {query}\n\nPlease let the user know that no documents are available or uploaded yet."
-                
-        except Exception as e:
-            logger.error(f"Error retrieving documents: {e}")
-            prompt = f"Unable to search documents due to an error. Question: {query}\n\nPlease let the user know there was an issue accessing their documents."
+        else:
+            context = ""
             source_docs = []
-        
-        # Step 3: Generate answer using selected model
-        if model.lower() == "openai":
-            return await generate_openai_response(prompt, source_docs)
-        else:  # Default to llama3 (Ollama)
-            return await generate_ollama_response(prompt, source_docs)
-            
+
+        prompt = CUSTOM_PROMPT.format(context=context or "No documents found.", question=query)
+
+        # Use Ollama locally (aligned with embeddings + rag_service)
+        llm = Ollama(base_url=settings.ollama_api_url, model="llama3", temperature=0)
+        answer = llm.invoke(prompt).strip()
+
+        if not docs:
+            return "I cannot find this information in the provided documents.", source_docs, "ollama-llama3"
+
+        return answer, source_docs, "ollama-llama3"
+
     except Exception as e:
         logger.error(f"Error in ask_hybrid_llm: {e}")
         return f"Error: {str(e)}", [], "error"
-
-
-async def generate_ollama_response(prompt: str, source_docs: List[SourceDoc]) -> Tuple[str, List[SourceDoc], str]:
-    """Generate response using Ollama models"""
-    try:
-        # Try smaller, faster model first
-        models_to_try = ["llama3.2:1b", "llama3"]
-        response = None
-        
-        for model_name in models_to_try:
-            try:
-                response = requests.post(
-                    f"http://{settings.ollama_host}:{settings.ollama_port}/api/generate",
-                    json={
-                        "model": model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "num_predict": 120,     # Shorter responses
-                            "temperature": 0.1,     # Very focused answers
-                            "top_p": 0.9,           # Limit token selection
-                            "top_k": 20             # Further limit choices
-                        }
-                    },
-                    timeout=45  # Shorter timeout
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    answer = result.get("response", "No answer generated")
-                    return answer.strip(), source_docs, f"ollama-{model_name}"
-                    
-            except Exception as e:
-                logger.warning(f"Failed with model {model_name}: {e}")
-                continue  # Try next model
-        
-        # If all Ollama models failed
-        logger.error("All Ollama models failed")
-        if source_docs:
-            fallback_answer = f"Based on your documents: {source_docs[0].content[:200]}..."
-            return fallback_answer, source_docs, "fallback"
-        else:
-            return "No documents found to answer your question. Please upload some documents first.", [], "error"
-            
-    except Exception as e:
-        logger.error(f"Error with Ollama: {e}")
-        if source_docs:
-            fallback_answer = f"I found relevant content in your documents: {source_docs[0].content[:300]}..."
-            return fallback_answer, source_docs, "fallback"
-        else:
-            return "Unable to generate response. Please try uploading documents first or try again later.", [], "error"
 
 
 async def generate_openai_response(prompt: str, source_docs: List[SourceDoc]) -> Tuple[str, List[SourceDoc], str]:
